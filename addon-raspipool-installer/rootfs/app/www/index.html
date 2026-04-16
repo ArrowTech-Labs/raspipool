@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Raspipool Installer</title>
+  <style>
+    :root {
+      --bg: #10161c;
+      --card: #1a2430;
+      --card-2: #212d3b;
+      --text: #eef3f8;
+      --muted: #9aa7b4;
+      --accent: #2bb5ff;
+      --accent-hover: #50c3ff;
+      --ok: #3ddc84;
+      --warn: #ffbd3d;
+      --err: #ff5c5c;
+      --border: #2a3a4c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header h1 { font-size: 20px; margin: 0; font-weight: 600; }
+    header .tag { font-size: 12px; color: var(--muted); }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .card h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .stat {
+      background: var(--card-2);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .stat .label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat .value {
+      font-size: 18px;
+      margin-top: 4px;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .value.ok { color: var(--ok); }
+    .value.warn { color: var(--warn); }
+    .value.err { color: var(--err); }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    button, a.btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    button:hover:not(:disabled), a.btn:hover { border-color: var(--accent); background: #243243; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #00213d; }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    button.danger { background: #3a1d1d; border-color: #6a2a2a; }
+    button.danger:hover:not(:disabled) { background: #4a2525; border-color: var(--err); }
+    .log {
+      background: #0b1016;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 240px;
+      overflow: auto;
+      color: #cbd5e1;
+    }
+    ol.next-steps { padding-left: 18px; margin: 0; line-height: 1.7; }
+    ol.next-steps code {
+      background: var(--card-2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      max-width: 360px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { border-left-color: var(--ok); }
+    .toast.err { border-left-color: var(--err); }
+    .toast.warn { border-left-color: var(--warn); }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Raspipool Installer</h1>
+    <span class="tag" id="addon-version">v1.0.1</span>
+  </header>
+  <main>
+    <section class="card">
+      <h2>Status</h2>
+      <div class="status-grid" id="status-grid">
+        <div class="stat"><div class="label">Integration</div><div class="value" id="stat-integration">…</div></div>
+        <div class="stat"><div class="label">Blueprints</div><div class="value" id="stat-blueprints">…</div></div>
+        <div class="stat"><div class="label">Home Assistant</div><div class="value" id="stat-ha">…</div></div>
+        <div class="stat"><div class="label">Last install</div><div class="value" id="stat-last">never</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Actions</h2>
+      <div class="actions">
+        <button class="primary" id="btn-sync">Sync / Update files</button>
+        <button id="btn-esphome">Download ESPHome template</button>
+        <a class="btn" id="btn-devices" href="/config/integrations/dashboard" target="_top">Open Devices &amp; services</a>
+        <button class="danger" id="btn-restart">Restart Home Assistant</button>
+      </div>
+      <p class="muted" style="margin-top: 14px;">
+        Sync copies the integration and blueprints into <code>/config</code>. A Home Assistant restart is required after the first sync
+        (or after any integration update) for the new files to load.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Next steps</h2>
+      <ol class="next-steps">
+        <li>Click <strong>Sync / Update files</strong> above.</li>
+        <li>Click <strong>Restart Home Assistant</strong> (first install only, or after an update).</li>
+        <li>Flash <strong>raspipool-esp32.yaml</strong> to your ESP32 using the ESPHome add-on.</li>
+        <li>Open <strong>Settings → Devices &amp; services → Add integration</strong> and search for <code>Raspipool</code>.</li>
+        <li>Complete the configuration wizard; your pool dashboard will appear automatically.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Sync log</h2>
+      <div class="log" id="log">Run a sync to see output here.</div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg, kind = "ok") => {
+      const el = $("toast");
+      el.textContent = msg;
+      el.className = `toast show ${kind}`;
+      setTimeout(() => el.classList.remove("show"), 3500);
+    };
+
+    const apiBase = ""; // Ingress strips path prefix; use relative URLs.
+
+    async function refreshStatus() {
+      try {
+        const r = await fetch(`${apiBase}/api/status`, { cache: "no-store" });
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        const s = await r.json();
+        $("stat-integration").textContent = s.installed_version ? `v${s.installed_version}` : "not installed";
+        $("stat-integration").className = `value ${s.installed_version ? "ok" : "warn"}`;
+        $("stat-blueprints").textContent = `${s.blueprints_count} file${s.blueprints_count === 1 ? "" : "s"}`;
+        $("stat-blueprints").className = `value ${s.blueprints_count > 0 ? "ok" : "warn"}`;
+        $("stat-ha").textContent = s.ha_version || "unknown";
+        $("stat-ha").className = "value";
+        const last = s.last_install && s.last_install.installed_at ? s.last_install.installed_at.replace("T", " ").replace("Z", " UTC") : "never";
+        $("stat-last").textContent = last;
+      } catch (e) {
+        toast(`Status error: ${e.message}`, "err");
+      }
+    }
+
+    async function runSync() {
+      const btn = $("btn-sync");
+      btn.disabled = true;
+      btn.textContent = "Syncing…";
+      $("log").textContent = "Running install.sh…";
+      try {
+        const r = await fetch(`${apiBase}/api/sync`, { method: "POST" });
+        const data = await r.json();
+        $("log").textContent = data.log || JSON.stringify(data, null, 2);
+        if (data.status === "ok") {
+          toast("Sync complete. Restart HA to load the integration.", "ok");
+        } else {
+          toast(`Sync failed (exit ${data.returncode})`, "err");
+        }
+      } catch (e) {
+        toast(`Sync error: ${e.message}`, "err");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sync / Update files";
+        refreshStatus();
+      }
+    }
+
+    async function requestRestart() {
+      if (!confirm("Restart Home Assistant Core now? All users will be disconnected for ~30 seconds.")) return;
+      const btn = $("btn-restart");
+      btn.disabled = true;
+      btn.textContent = "Restarting…";
+      try {
+        const r = await fetch(`${apiBase}/api/restart`, { method: "POST" });
+        const data = await r.json();
+        if (r.ok && data.status === "ok") {
+          toast("HA restart requested. The UI will disconnect briefly.", "ok");
+        } else {
+          toast(`Restart failed: ${data.message || data.supervisor_response}`, "err");
+        }
+      } catch (e) {
+        toast(`Restart error: ${e.message}`, "err");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Restart Home Assistant";
+      }
+    }
+
+    function downloadEsphome() {
+      window.location.href = `${apiBase}/api/esphome-template`;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      $("btn-sync").addEventListener("click", runSync);
+      $("btn-restart").addEventListener("click", requestRestart);
+      $("btn-esphome").addEventListener("click", downloadEsphome);
+      refreshStatus();
+      setInterval(refreshStatus, 15000);
+    });
+  </script>
+</body>
+</html>

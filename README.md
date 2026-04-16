@@ -1,7 +1,7 @@
 # Raspipool
 
 **Swimming-pool automation for Home Assistant 2026+**, with an ESP32-based
-pool-side controller and a HACS-installable Home Assistant integration.
+pool-side controller and a one-click installer add-on for Home Assistant.
 
 This is a modernized rewrite of the
 [original Raspipool](https://github.com/segalion/raspipool) project
@@ -15,7 +15,7 @@ in 2019 and relies on APIs that have since been removed.
   - DS18B20 waterproof water-temperature probe
   - 4 relays: main pump, turbo, pH injection pump, ORP injection pump
   - Hard safety interlocks: chemical pumps cannot run without the main pump.
-- **`raspipool` Home Assistant integration** (installable via HACS) that adds:
+- **`raspipool` Home Assistant integration** that adds:
   - Free-chlorine estimate sensor
   - Smoothed pH / ORP sensors
   - Next-filter-cycle duration sensor
@@ -32,6 +32,8 @@ in 2019 and relies on APIs that have since been removed.
   - Low-tank notifications
   - Pool temperature alerts
 - **Modern Lovelace dashboard** replacing the old `ui-lovelace.yaml`.
+- **Raspipool Installer add-on** — a tiny Docker add-on with a built-in Ingress
+  UI that downloads and installs the integration and blueprints for you.
 
 ## Architecture
 
@@ -39,7 +41,7 @@ in 2019 and relies on APIs that have since been removed.
 +--------------------+           WiFi / ESPHome Native API
 | ESP32 (ESPHome)    |  <---------------------------------->  Home Assistant (HA OS, Pi 4)
 |                    |                                         - ESPHome integration (builtin)
-|  - Atlas EZO pH    |                                         - raspipool integration (HACS)
+|  - Atlas EZO pH    |                                         - raspipool integration
 |  - Atlas EZO ORP   |                                         - HA dashboard
 |  - DS18B20 temp    |
 |  - 4x relay GPIO   |
@@ -61,43 +63,63 @@ directory, create a `secrets.yaml`, and flash the board.
 Home Assistant will auto-discover the device and you will be prompted to
 confirm its encryption key. All sensors and switches will appear in HA.
 
-### 2. Install the Raspipool integration via HACS
+### 2. Install the Raspipool integration via the add-on (recommended)
 
-1. Open **Settings → Apps** (or the **HACS** entry in the sidebar, depending on
-   your Home Assistant version) → **Integrations** → **⋮** (three dots) →
-   **Custom repositories**.
-2. Paste `https://github.com/ArrowTech-Labs/raspipool`.
-3. Set **Category** to **Integration** (not Add-on, not Theme). Add the repository.
-4. Install **Raspipool**, then restart Home Assistant.
+Raspipool ships a small installer add-on that does everything for you — it
+copies the integration, installs the blueprints, and exposes a one-click UI
+for future updates.
 
-**If you see “is not a valid app repository”:** that almost always means either
-(1) the category is wrong (must be **Integration**), (2) the repo is missing
-[HACS integration requirements](https://www.hacs.xyz/docs/publish/integration/)
-— in particular a `custom_components/<domain>/brand/icon.png` — or (3) you are
-in **Settings → Add-ons → Add-on store → Repositories** (Supervisor add-ons use
-a different format and will reject a custom integration repo). Use **Apps /
-HACS → Custom repositories** instead.
-4. Settings -> Devices & Services -> **Add Integration** -> Raspipool.
-5. Follow the wizard to map your ESP32 sensors/switches and enter pool
-   parameters.
+1. Open Home Assistant → **Settings → Add-ons → Add-on Store**.
+2. Click the **⋮** menu in the top-right → **Repositories**.
+3. Paste:
 
-### 3. Install automations and dashboard (optional)
+   ```
+   https://github.com/ArrowTech-Labs/raspipool
+   ```
 
-- Import any of the blueprints from [`blueprints/automation/raspipool/`](blueprints/automation/raspipool/)
-  via **Settings -> Automations & Scenes -> Blueprints -> Import Blueprint**.
+4. Click **Add**, then close the dialog. The **Raspipool Installer** add-on
+   will appear in the store.
+5. Open the add-on → **Install** → **Start**.
+6. Click **Open Web UI** (or use the **Raspipool** entry in the left sidebar).
+7. In the installer UI:
+   - Click **Sync / Update files** (auto-run on first start).
+   - Click **Restart Home Assistant**.
+8. After HA comes back, go to **Settings → Devices & services → Add integration**,
+   search for **Raspipool**, and complete the wizard.
+
+The installer UI keeps a status panel showing the installed integration version,
+blueprint count, and Home Assistant version, and provides buttons to re-sync,
+download the ESPHome template, and restart HA for future updates.
+
+### 2b. Manual install (fallback)
+
+If you prefer not to use the installer add-on, you can copy the files directly:
+
+1. Copy the [`custom_components/raspipool`](custom_components/raspipool) folder
+   into your Home Assistant configuration directory so you have
+   `config/custom_components/raspipool/` (same level as `configuration.yaml`).
+2. Copy [`blueprints/automation/raspipool`](blueprints/automation/raspipool)
+   into `config/blueprints/automation/raspipool/`.
+3. Restart Home Assistant.
+4. Finish setup via **Settings → Devices & services → Add integration → Raspipool**.
+
+### 3. Install the dashboard (optional)
+
 - Create a new dashboard and paste the contents of
   [`lovelace/raspipool.yaml`](lovelace/raspipool.yaml) into its raw-YAML editor.
 
 ## Requirements
 
+- Home Assistant OS (or Supervised) — required for the installer add-on
 - Home Assistant 2024.12 or later (tested on 2026.4.2)
-- Home Assistant OS on a Raspberry Pi 4 (or any supported platform)
-- HACS installed
 - ESP32 dev board (e.g. ESP32-WROOM-32)
 - Atlas Scientific EZO pH + ORP circuits (I2C mode) and compatible probes
 - DS18B20 waterproof temperature probe
 - 4-channel 5V relay board
 - Peristaltic (or similar) dosing pumps for pH and ORP chemicals
+
+Manual install works on Home Assistant Core / Container too (no Supervisor
+required), but the installer add-on needs HA OS or HA Supervised.
 
 ## Migration from the 2019 Raspipool
 
@@ -115,35 +137,20 @@ and blueprint equivalents; a mapping table lives in [`legacy/README.md`](legacy/
 
 ## Publishing new versions (maintainers)
 
-This repository is configured so HACS installs directly from the **default
-branch** — you do **not** need to create GitHub Releases. Per the
-[HACS publishing rules](https://www.hacs.xyz/docs/publish/start/#versions):
-
-> If the repository does not use tags, the 7 first characters of the last
-> commit will be used.
->
-> Just publishing tags is not enough, you need to publish releases.
-
-So:
-
-- `git tag v1.2.3 && git push --tags` **does not** register a new version in
-  HACS. Git tags without an accompanying GitHub Release are ignored.
-- HACS will always install the latest commit of the default branch and show
-  the short commit SHA as the remote version in the HACS UI.
-- Users still get "update available" notifications whenever a new commit lands.
-
-### Recommended release workflow
+The installer add-on downloads the integration payload straight from GitHub at
+install/sync time, so there is no separate release artifact to build.
 
 1. Bump the `version` field in
    [`custom_components/raspipool/manifest.json`](custom_components/raspipool/manifest.json)
    (this is the version Home Assistant shows on the integration card itself).
-2. Commit the change and push to the default branch.
-3. Optionally run `git tag v1.2.3 && git push --tags` as a reference marker —
-   it has no effect on HACS.
-
-If later on you want HACS to pin to named versions, create a GitHub Release
-(`gh release create v1.2.3 --generate-notes`). Until then the tag-or-no-tag
-workflow above is all that is required.
+2. Bump `version:` in
+   [`addon-raspipool-installer/config.yaml`](addon-raspipool-installer/config.yaml)
+   and add an entry to `addon-raspipool-installer/CHANGELOG.md`.
+3. Commit both changes to the default branch.
+4. Optionally `git tag v1.2.3 && git push --tags` as a reference marker — the
+   Supervisor will rebuild the add-on image automatically whenever `version:`
+   in the add-on `config.yaml` changes.
+5. Existing users see an **update available** badge in the Add-on Store.
 
 ## License
 

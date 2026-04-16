@@ -1,0 +1,47 @@
+blueprint:
+  name: Raspipool daily filter cycle
+  description: >
+    Starts the pool filter pump at a chosen time each day and runs it for the
+    duration computed by the Raspipool "Next filter cycle" sensor, then turns
+    the pump off. Replaces the legacy YAML `cycle_start` / `cycle_pump_start`
+    automations.
+  domain: automation
+  source_url: https://github.com/ArrowTech-Labs/raspipool
+  input:
+    cycle_start_time:
+      name: Cycle start time
+      description: Time of day to start the filter cycle.
+      default: "08:00:00"
+      selector:
+        time:
+    pump_switch:
+      name: Main pump switch
+      description: Switch entity for the main filter pump (ESPHome relay).
+      selector:
+        entity:
+          domain: switch
+    cycle_sensor:
+      name: Next-cycle duration sensor
+      description: Raspipool sensor that reports the planned cycle duration in minutes.
+      default: sensor.next_filter_cycle
+      selector:
+        entity:
+          domain: sensor
+
+trigger:
+  - platform: time
+    at: !input cycle_start_time
+
+action:
+  - service: switch.turn_on
+    target:
+      entity_id: !input pump_switch
+  - delay:
+      minutes: "{{ states(cycle_sensor) | float(0) | round(0) }}"
+    variables:
+      cycle_sensor: !input cycle_sensor
+  - service: switch.turn_off
+    target:
+      entity_id: !input pump_switch
+
+mode: single

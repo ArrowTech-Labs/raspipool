@@ -1,0 +1,166 @@
+# Raspipool dashboard
+#
+# Modern replacement for the legacy ui-lovelace.yaml. Paste this YAML into a
+# new dashboard via: Settings -> Dashboards -> Add Dashboard -> Show code editor.
+#
+# Entity IDs below follow the defaults from the Raspipool integration; adjust
+# them if you picked different names in the config flow or on the ESP32.
+
+title: Raspipool
+views:
+  - title: Pool
+    path: pool
+    icon: mdi:pool
+    badges:
+      - entity: sensor.free_chlorine_estimate
+      - entity: sensor.next_filter_cycle
+    cards:
+      - type: grid
+        columns: 3
+        square: false
+        cards:
+          - type: gauge
+            entity: sensor.pool_water_temperature
+            name: Temp
+            min: 15
+            max: 40
+            severity:
+              green: 27
+              yellow: 31
+              red: 33
+          - type: gauge
+            entity: sensor.ph_smoothed
+            name: pH
+            min: 6.5
+            max: 8.0
+            severity:
+              green: 7.0
+              yellow: 7.5
+              red: 7.8
+          - type: gauge
+            entity: sensor.orp_smoothed
+            name: ORP
+            min: 400
+            max: 900
+            severity:
+              green: 650
+              yellow: 750
+              red: 800
+
+      - type: entities
+        title: Control
+        entities:
+          - entity: switch.pool_pump
+            name: Main pump
+            secondary_info: last-changed
+          - entity: switch.pool_turbo
+            name: Turbo
+          - entity: binary_sensor.pump_running
+            name: Pump status
+          - entity: binary_sensor.bleach_injection
+            name: Bleach injecting
+          - entity: binary_sensor.muriatic_injection
+            name: Muriatic injecting
+
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: gauge
+            entity: sensor.bleach_tank
+            name: Bleach tank
+            min: 0
+            max: 15
+            severity:
+              red: 0
+              yellow: 3
+              green: 8
+          - type: gauge
+            entity: sensor.muriatic_tank
+            name: Muriatic tank
+            min: 0
+            max: 10
+            severity:
+              red: 0
+              yellow: 3
+              green: 5
+
+  - title: History
+    path: history
+    icon: mdi:chart-line
+    cards:
+      - type: history-graph
+        title: Last 3 hours
+        hours_to_show: 3
+        entities:
+          - binary_sensor.pump_running
+          - binary_sensor.bleach_injection
+          - binary_sensor.muriatic_injection
+          - sensor.ph_smoothed
+          - sensor.orp_smoothed
+          - sensor.pool_water_temperature
+      - type: history-graph
+        title: Last 3 days
+        hours_to_show: 72
+        entities:
+          - binary_sensor.pump_running
+          - sensor.ph_smoothed
+          - sensor.orp_smoothed
+          - sensor.pool_water_temperature
+          - sensor.bleach_tank
+          - sensor.muriatic_tank
+
+  - title: Chemical
+    path: chemical
+    icon: mdi:flask
+    cards:
+      - type: grid
+        columns: 2
+        square: false
+        cards:
+          - type: entities
+            title: Muriatic (pH down)
+            entities:
+              - entity: number.muriatic_tank_level
+                name: Tank level
+              - entity: switch.lock_muriatic
+                name: Lock
+              - entity: button.refill_muriatic_tank
+              - entity: button.inject_planned_muriatic_dose
+              - entity: binary_sensor.muriatic_injection
+                name: Injecting now
+                secondary_info: last-changed
+          - type: entities
+            title: Bleach (FC / ORP up)
+            entities:
+              - entity: number.bleach_tank_level
+                name: Tank level
+              - entity: switch.lock_bleach
+                name: Lock
+              - entity: button.refill_bleach_tank
+              - entity: button.inject_planned_bleach_dose
+              - entity: binary_sensor.bleach_injection
+                name: Injecting now
+                secondary_info: last-changed
+
+  - title: Settings
+    path: settings
+    icon: mdi:tune
+    cards:
+      - type: entities
+        title: Targets
+        entities:
+          - entity: number.ph_target
+          - entity: number.fc_target
+          - entity: sensor.ph_smoothed
+            name: Current pH
+          - entity: sensor.free_chlorine_estimate
+            name: Current FC
+      - type: entities
+        title: Filter cycle
+        entities:
+          - entity: number.pool_quality
+          - entity: number.second_cycle
+          - entity: number.turbo_cycle
+          - entity: switch.turbo_cycle_enabled
+          - entity: sensor.next_filter_cycle

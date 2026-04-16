@@ -1,0 +1,255 @@
+# Raspipool ESP32 Firmware
+#
+# Pool-side controller firmware for Raspipool, running on an ESP32.
+# Exposes pH, ORP, water temperature sensors and pump/turbo/chemical injection
+# relays to Home Assistant via the ESPHome Native API.
+#
+# Hardware assumptions (adjust pins to match your wiring):
+#   - Atlas Scientific EZO pH circuit on I2C (address 0x63)
+#   - Atlas Scientific EZO ORP circuit on I2C (address 0x62)
+#   - DS18B20 waterproof temp probe on GPIO 4 (OneWire)
+#   - 4-channel relay board on GPIO 25 (pump), 26 (turbo), 27 (pH inject), 14 (ORP inject)
+#     with optional relays on GPIO 12, 13 for future expansion
+#
+# Create a secrets.yaml file in your ESPHome config dir with:
+#   wifi_ssid: "your-ssid"
+#   wifi_password: "your-password"
+#   api_encryption_key: "<base64-32-byte-key>"
+#   ota_password: "<password>"
+
+substitutions:
+  device_name: raspipool-esp32
+  friendly_name: Raspipool Pool Controller
+  # Adjust per your probe calibration
+  ph_offset: "0.0"
+  orp_offset: "0.0"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: Pool-side controller for Raspipool
+  project:
+    name: arrowtech_labs.raspipool
+    version: "1.0.0"
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${device_name} Fallback"
+    password: !secret ota_password
+
+captive_portal:
+
+web_server:
+  port: 80
+  version: 3
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+# -----------------------------------------------------------------------------
+# I2C bus (Atlas Scientific EZO pH and ORP)
+# -----------------------------------------------------------------------------
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+  id: bus_a
+
+# -----------------------------------------------------------------------------
+# OneWire bus (DS18B20 water temperature probe)
+# -----------------------------------------------------------------------------
+one_wire:
+  - platform: gpio
+    pin: GPIO4
+
+# -----------------------------------------------------------------------------
+# Sensors
+# -----------------------------------------------------------------------------
+sensor:
+  # Water temperature: DS18B20
+  - platform: dallas_temp
+    name: "Pool Water Temperature"
+    id: pool_water_temperature
+    update_interval: 30s
+    unit_of_measurement: "°C"
+    accuracy_decimals: 2
+    filters:
+      - filter_out: NaN
+      # Compensate EZO circuits with water temperature
+      - lambda: |-
+          id(ph_sensor).set_tempcomp_value(x);
+          id(orp_sensor).set_tempcomp_value(x);
+          return x;
+
+  # Atlas Scientific EZO pH
+  - platform: ezo
+    id: ph_sensor
+    name: "Pool pH"
+    address: 0x63
+    unit_of_measurement: "pH"
+    accuracy_decimals: 2
+    icon: "mdi:alpha-h-circle"
+    update_interval: 60s
+    filters:
+      - offset: ${ph_offset}
+
+  # Atlas Scientific EZO ORP
+  - platform: ezo
+    id: orp_sensor
+    name: "Pool ORP"
+    address: 0x62
+    unit_of_measurement: "mV"
+    accuracy_decimals: 1
+    icon: "mdi:alpha-r-circle"
+    update_interval: 60s
+    filters:
+      - offset: ${orp_offset}
+
+  # RSSI for diagnostics
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+
+  # Uptime
+  - platform: uptime
+    name: "${friendly_name} Uptime"
+    entity_category: diagnostic
+
+# -----------------------------------------------------------------------------
+# Binary sensors
+# -----------------------------------------------------------------------------
+binary_sensor:
+  - platform: status
+    name: "${friendly_name} Status"
+
+# -----------------------------------------------------------------------------
+# Switches (relays)
+# -----------------------------------------------------------------------------
+# NOTE: Most cheap relay HATs are active-low (inverted: true).
+# If your relay board is active-high, remove inverted: true.
+switch:
+  - platform: gpio
+    name: "Pool Pump"
+    id: pump
+    pin:
+      number: GPIO25
+      inverted: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:water-pump"
+
+  - platform: gpio
+    name: "Pool Turbo"
+    id: turbo
+    pin:
+      number: GPIO26
+      inverted: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:fan"
+
+  # pH dosing pump (muriatic acid)
+  - platform: gpio
+    name: "Pool pH Injection"
+    id: ph_inject
+    pin:
+      number: GPIO27
+      inverted: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:eyedropper"
+    # Safety: never run unless main pump is running
+    on_turn_on:
+      - if:
+          condition:
+            switch.is_off: pump
+          then:
+            - switch.turn_off: ph_inject
+            - logger.log:
+                format: "Refused to enable pH injection: main pump is off"
+                level: WARN
+
+  # ORP dosing pump (bleach / liquid chlorine)
+  - platform: gpio
+    name: "Pool ORP Injection"
+    id: orp_inject
+    pin:
+      number: GPIO14
+      inverted: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: "mdi:eyedropper"
+    on_turn_on:
+      - if:
+          condition:
+            switch.is_off: pump
+          then:
+            - switch.turn_off: orp_inject
+            - logger.log:
+                format: "Refused to enable ORP injection: main pump is off"
+                level: WARN
+
+# -----------------------------------------------------------------------------
+# Automation: when pump stops, force-off both chemical injection pumps.
+# -----------------------------------------------------------------------------
+interval:
+  - interval: 5s
+    then:
+      - if:
+          condition:
+            switch.is_off: pump
+          then:
+            - switch.turn_off: ph_inject
+            - switch.turn_off: orp_inject
+
+# -----------------------------------------------------------------------------
+# Buttons for EZO calibration exposed as HA services
+# -----------------------------------------------------------------------------
+button:
+  - platform: template
+    name: "pH Calibrate Mid (7.00)"
+    on_press:
+      - ezo.command:
+          id: ph_sensor
+          command: "Cal,mid,7.00"
+
+  - platform: template
+    name: "pH Calibrate Low (4.00)"
+    on_press:
+      - ezo.command:
+          id: ph_sensor
+          command: "Cal,low,4.00"
+
+  - platform: template
+    name: "pH Calibrate High (10.00)"
+    on_press:
+      - ezo.command:
+          id: ph_sensor
+          command: "Cal,high,10.00"
+
+  - platform: template
+    name: "ORP Calibrate (225 mV)"
+    on_press:
+      - ezo.command:
+          id: orp_sensor
+          command: "Cal,225"
+
+  - platform: restart
+    name: "${friendly_name} Restart"
+    entity_category: diagnostic

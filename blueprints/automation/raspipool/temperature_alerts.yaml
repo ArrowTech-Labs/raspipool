@@ -1,0 +1,55 @@
+blueprint:
+  name: Raspipool pool temperature alerts
+  description: >
+    Notify when pool water temperature crosses high/low thresholds. Replaces
+    the legacy `temp_high` / `temp_low` automations in `temp.yaml`.
+  domain: automation
+  source_url: https://github.com/ArrowTech-Labs/raspipool
+  input:
+    temperature_sensor:
+      name: Water temperature sensor
+      selector:
+        entity:
+          domain: sensor
+    low_threshold:
+      name: Low temperature threshold (°C)
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 40
+          step: 0.5
+    high_threshold:
+      name: High temperature threshold (°C)
+      default: 32
+      selector:
+        number:
+          min: 15
+          max: 45
+          step: 0.5
+    notify_service:
+      name: Notification service
+      default: notify.notify
+      selector:
+        text:
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input low_threshold
+    id: low
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input high_threshold
+    id: high
+
+action:
+  - service: !input notify_service
+    data:
+      title: "Pool temperature alert"
+      message: >-
+        Water temperature is
+        {% if trigger.id == 'low' %}below the low threshold{% else %}above the high threshold{% endif %}
+        at {{ states(trigger.entity_id) }} °C.
+
+mode: single

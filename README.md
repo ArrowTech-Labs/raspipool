@@ -1,40 +1,107 @@
-# raspipool
-**Swimming-Pool Automation Systen with Raspberry Pi + Home Assistant**
+# Raspipool
 
-<img src="/help/media/raspipool_main2.png" height="256">
+**Swimming-pool automation for Home Assistant 2026+**, with an ESP32-based
+pool-side controller and a HACS-installable Home Assistant integration.
 
-## Overview:
+This is a modernized rewrite of the
+[original Raspipool](https://github.com/segalion/raspipool) project
+(Raspberry Pi + GPIO + Atlas UART), which was built for Home Assistant ~0.93
+in 2019 and relies on APIs that have since been removed.
 
- A cost-effective, easy-to-build, easy-to-use "Swimming-Pool Automation System" with top functions to automate, control and monitorize (from web) small-medium size swimming pools.
+## What you get
 
-- Automatic filter control (fixed and dual-speed pumps, 1 or 2 daily cycles) based on temperature.
-- 3 sensors:
-  - water temperature (one-wire [DS18B20 waterprof](https://aliexpress.com/item/32968031204.html))
-  - [ph](https://www.atlas-scientific.com/product_pages/circuits/ezo_ph.html) and [orp](https://www.atlas-scientific.com/product_pages/circuits/ezo_orp.html) with [EZO circuits](https://www.atlas-scientific.com/product_pages/components/ezo-carrier-board.html). A custom UART sensor for HA has been developed.
-- and minimun of [4 relays](https://aliexpress.com/item/32961638909.html) [or 6](https://aliexpress.com/item/32997012084.html) controlling :
-  - pump on/off and pump speed (high/low)
-  - muriatic acid injection (to regulate pH) and bleach injection (to mantain sanitization level)
- 
- System is intended to monitoring and automagically control most important functions and notify to mobile all possible events.
- 
- ## Build system:
- 
- Follow instructions in wiki [howto build a bypass to connect sensors to the pool](https://github.com/segalion/raspipool/wiki/Bypass-for-sensors), [howto connect sensors to the raspberry pi](https://github.com/segalion/raspipool/wiki/Sensors-connection-(DS18B20,-and-EZO-pH-and-ORP)) and [howto connect relays between pumps and raspberry pi](https://github.com/segalion/raspipool/wiki/Connection-of-relays-for-pump-control)
- 
- ## Install
- 0. Install [hassbian](https://www.home-assistant.io/docs/installation/hassbian/installation/) in a raspberry pi (3 or 4), and give wifi connection. (If advanced user, you can instead install [raspbian](https://myhydropi.com/raspberry-pi-initial-setup) + [Home Assistant with this prefered method](https://www.home-assistant.io/docs/installation/raspberry-pi/))
- 1. Copy 'custom_components', 'packages' folders (with all paths and contents) and 'ui-lovelace.yaml' frontend file in homeassistant conf_dir ( i.e. /home/homeassistant/.homeassistant/ ).
- 2. Modify your 'configuration.yaml' (including '  packages: !include_dir_named packages', disabling automations, scripts and groups, discovery and lovelace in yaml mode) as example in code
- 3. Create/modify proper 'secrets.yaml' for apis (latitude/longitude, pushbullet api, openweathermap api, etc).
- 
- 
- ## TODO:
- - Correction of FC-ORP based on CYA (actually only linear correction)
- - SWC – Salt Water Chlorinator (instead of bleach injections)
- - Control Variable Speed Motor based on 3 digital inputs (0 to 7 speeds)
- - Integrate [mega-io board](https://www.sequentmicrosystems.com/megaio.html) (relays and ACD with i2c control) instead of actual gpio-relay HATs
- 
- ## Optional
- For pumps <= 1.5 HP, a external sensor to measure power consumption and [safe motor](https://en.wikipedia.org/wiki/Magnetic_starter) (based on sonoff POW)
- 
- <sub>Thanks to Hidromaster, Piscidoc, and all DIY enthusiasts from [hablemosdepisicnas](http://www.hablemosdepiscinas.com/foro/viewtopic.php?f=11&t=3906) and [TFP](https://www.troublefreepool.com/threads/raspipool-pool-automation-system-with-raspberry-pi-home-assistant.188410/) forums.</sub>
+- **ESPHome firmware** for an ESP32 that exposes:
+  - Atlas Scientific EZO pH and ORP sensors (I2C)
+  - DS18B20 waterproof water-temperature probe
+  - 4 relays: main pump, turbo, pH injection pump, ORP injection pump
+  - Hard safety interlocks: chemical pumps cannot run without the main pump.
+- **`raspipool` Home Assistant integration** (installable via HACS) that adds:
+  - Free-chlorine estimate sensor
+  - Smoothed pH / ORP sensors
+  - Next-filter-cycle duration sensor
+  - Bleach / muriatic tank level sensors + tank-level number entities
+  - pH / FC / quality / turbo target number entities
+  - Bleach / muriatic lock switches
+  - Refill / inject quick-action buttons
+  - `raspipool.inject_bleach`, `raspipool.inject_muriatic`,
+    `raspipool.run_pump_for`, `raspipool.reset_tank` services
+  - Config flow with a simple entity-mapping wizard
+- **Automation blueprints** for:
+  - Daily filter cycle scheduler
+  - Automatic chemical balancing
+  - Low-tank notifications
+  - Pool temperature alerts
+- **Modern Lovelace dashboard** replacing the old `ui-lovelace.yaml`.
+
+## Architecture
+
+```
++--------------------+           WiFi / ESPHome Native API
+| ESP32 (ESPHome)    |  <---------------------------------->  Home Assistant (HA OS, Pi 4)
+|                    |                                         - ESPHome integration (builtin)
+|  - Atlas EZO pH    |                                         - raspipool integration (HACS)
+|  - Atlas EZO ORP   |                                         - HA dashboard
+|  - DS18B20 temp    |
+|  - 4x relay GPIO   |
++--------------------+
+```
+
+The pool-side Raspberry Pi is no longer required: the Pi now runs Home
+Assistant OS, and all direct hardware I/O happens on the ESP32. If you want to
+reuse a Pi, you can install Home Assistant OS on it.
+
+## Installation
+
+### 1. Flash the ESP32
+
+See [`esphome/README.md`](esphome/README.md). Install the ESPHome add-on in
+Home Assistant, drop `esphome/raspipool-esp32.yaml` into the ESPHome config
+directory, create a `secrets.yaml`, and flash the board.
+
+Home Assistant will auto-discover the device and you will be prompted to
+confirm its encryption key. All sensors and switches will appear in HA.
+
+### 2. Install the Raspipool integration via HACS
+
+1. Open HACS -> Integrations -> three-dot menu -> Custom repositories.
+2. Add `https://github.com/ArrowTech-Labs/raspipool` with category `Integration`.
+3. Install **Raspipool**. Restart Home Assistant.
+4. Settings -> Devices & Services -> **Add Integration** -> Raspipool.
+5. Follow the wizard to map your ESP32 sensors/switches and enter pool
+   parameters.
+
+### 3. Install automations and dashboard (optional)
+
+- Import any of the blueprints from [`blueprints/automation/raspipool/`](blueprints/automation/raspipool/)
+  via **Settings -> Automations & Scenes -> Blueprints -> Import Blueprint**.
+- Create a new dashboard and paste the contents of
+  [`lovelace/raspipool.yaml`](lovelace/raspipool.yaml) into its raw-YAML editor.
+
+## Requirements
+
+- Home Assistant 2024.12 or later (tested on 2026.4.2)
+- Home Assistant OS on a Raspberry Pi 4 (or any supported platform)
+- HACS installed
+- ESP32 dev board (e.g. ESP32-WROOM-32)
+- Atlas Scientific EZO pH + ORP circuits (I2C mode) and compatible probes
+- DS18B20 waterproof temperature probe
+- 4-channel 5V relay board
+- Peristaltic (or similar) dosing pumps for pH and ORP chemicals
+
+## Migration from the 2019 Raspipool
+
+If you used the original [segalion/raspipool](https://github.com/segalion/raspipool):
+
+1. Remove the old `custom_components/atlas_scientific/` folder and the
+   `packages/raspipool/` directory from your HA config. They are preserved
+   in [`legacy/`](legacy/) in this repo for reference.
+2. Remove `ui-lovelace.yaml` and any `lovelace: mode: yaml` line in
+   `configuration.yaml`.
+3. Follow the installation steps above.
+
+Every capability of the original YAML-package system is re-created via entity
+and blueprint equivalents; a mapping table lives in [`legacy/README.md`](legacy/README.md).
+
+## License
+
+MIT - see [LICENSE](LICENSE).

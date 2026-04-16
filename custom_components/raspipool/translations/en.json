@@ -1,0 +1,114 @@
+{
+  "title": "Raspipool",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Raspipool: connect your ESP32 controller",
+        "description": "Map the sensors and switches exposed by your ESPHome-flashed ESP32 (see the raspipool ESPHome firmware).",
+        "data": {
+          "pool_name": "Pool name",
+          "source_temperature": "Water temperature sensor",
+          "source_ph": "pH sensor",
+          "source_orp": "ORP sensor",
+          "source_pump": "Main pump switch",
+          "source_turbo": "Turbo pump switch (optional)",
+          "source_ph_inject": "pH injection (muriatic) switch",
+          "source_orp_inject": "ORP injection (bleach) switch"
+        }
+      },
+      "pool": {
+        "title": "Pool parameters",
+        "data": {
+          "pool_capacity": "Pool capacity (liters)",
+          "pool_quality": "Filtration quality (1-10)",
+          "pool_turnover_hours": "Design turnover (hours)"
+        }
+      },
+      "chemistry": {
+        "title": "Chemistry and dosing",
+        "data": {
+          "ph_target": "pH target",
+          "fc_target": "Free chlorine target (ppm)",
+          "bleach_concentration": "Bleach concentration (%)",
+          "bleach_tank_size": "Bleach tank size (liters)",
+          "bleach_inject_speed": "Bleach dosing speed (ml/sec)",
+          "muriatic_concentration": "Muriatic concentration (%)",
+          "muriatic_tank_size": "Muriatic tank size (liters)",
+          "muriatic_inject_speed": "Muriatic dosing speed (ml/sec)"
+        }
+      },
+      "notifications": {
+        "title": "Notifications (optional)",
+        "description": "Enter the notify service to call for pool alerts, e.g. `notify.mobile_app_my_phone`. Leave blank to disable.",
+        "data": {
+          "notify_service": "Notify service"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This pool is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Raspipool options",
+        "data": {
+          "ph_target": "pH target",
+          "fc_target": "Free chlorine target (ppm)",
+          "pool_quality": "Filtration quality (1-10)",
+          "pool_turnover_hours": "Design turnover (hours)",
+          "bleach_concentration": "Bleach concentration (%)",
+          "muriatic_concentration": "Muriatic concentration (%)",
+          "notify_service": "Notify service"
+        }
+      }
+    }
+  },
+  "services": {
+    "inject_bleach": {
+      "name": "Inject bleach",
+      "description": "Dose bleach (activates the ORP injection pump for the required time).",
+      "fields": {
+        "milliliters": {
+          "name": "Amount",
+          "description": "Milliliters of bleach to inject."
+        }
+      }
+    },
+    "inject_muriatic": {
+      "name": "Inject muriatic acid",
+      "description": "Dose muriatic acid (activates the pH injection pump for the required time).",
+      "fields": {
+        "milliliters": {
+          "name": "Amount",
+          "description": "Milliliters of muriatic acid to inject."
+        }
+      }
+    },
+    "run_pump_for": {
+      "name": "Run pump for",
+      "description": "Run the main pool pump for a fixed duration.",
+      "fields": {
+        "minutes": {
+          "name": "Minutes",
+          "description": "Number of minutes to run the pump."
+        }
+      }
+    },
+    "reset_tank": {
+      "name": "Reset tank level",
+      "description": "Reset a chemical tank level (after a refill).",
+      "fields": {
+        "tank": {
+          "name": "Tank",
+          "description": "Which tank to reset: 'bleach' or 'muriatic'."
+        },
+        "liters": {
+          "name": "Liters",
+          "description": "New tank level in liters."
+        }
+      }
+    }
+  }
+}

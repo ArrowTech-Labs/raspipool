@@ -1,0 +1,99 @@
+blueprint:
+  name: Raspipool chemical balancing
+  description: >
+    When the pool pump has been running for 15 minutes, dose bleach and/or
+    muriatic acid based on how far the current pH and FC estimate are from
+    their targets. Uses the Raspipool `inject_bleach` / `inject_muriatic`
+    services so dosing respects the configured pump speeds and tank levels.
+  domain: automation
+  source_url: https://github.com/ArrowTech-Labs/raspipool
+  input:
+    pump_binary_sensor:
+      name: Pump running sensor
+      description: Raspipool pump-running binary sensor.
+      default: binary_sensor.pump_running
+      selector:
+        entity:
+          domain: binary_sensor
+    ph_sensor:
+      name: pH sensor (smoothed)
+      default: sensor.ph_smoothed
+      selector:
+        entity:
+          domain: sensor
+    fc_sensor:
+      name: Free chlorine estimate sensor
+      default: sensor.free_chlorine_estimate
+      selector:
+        entity:
+          domain: sensor
+    ph_target:
+      name: pH target
+      default: 7.4
+      selector:
+        number:
+          min: 6.5
+          max: 8.0
+          step: 0.05
+    fc_target:
+      name: FC target (ppm)
+      default: 2.0
+      selector:
+        number:
+          min: 0.0
+          max: 10.0
+          step: 0.1
+    ml_per_ph_unit:
+      name: Muriatic ml per pH unit
+      description: Milliliters of muriatic acid to dose per 0.1 pH offset above target.
+      default: 25
+      selector:
+        number:
+          min: 0
+          max: 500
+    ml_per_fc_ppm:
+      name: Bleach ml per missing FC ppm
+      description: Milliliters of bleach to dose per 1 ppm FC below target.
+      default: 150
+      selector:
+        number:
+          min: 0
+          max: 2000
+
+trigger:
+  - platform: state
+    entity_id: !input pump_binary_sensor
+    to: "on"
+    for:
+      minutes: 15
+
+action:
+  - variables:
+      ph_now: "{{ states(ph_sensor) | float(none) }}"
+      fc_now: "{{ states(fc_sensor) | float(none) }}"
+      ph_sensor: !input ph_sensor
+      fc_sensor: !input fc_sensor
+      ph_target: !input ph_target
+      fc_target: !input fc_target
+      ml_per_ph_unit: !input ml_per_ph_unit
+      ml_per_fc_ppm: !input ml_per_fc_ppm
+
+  - if:
+      - condition: template
+        value_template: "{{ ph_now is not none and ph_now > ph_target }}"
+    then:
+      - service: raspipool.inject_muriatic
+        data:
+          milliliters: >-
+            {{ ((ph_now - ph_target) * 10 * ml_per_ph_unit) | round(0) }}
+
+  - if:
+      - condition: template
+        value_template: "{{ fc_now is not none and fc_now < fc_target }}"
+    then:
+      - service: raspipool.inject_bleach
+        data:
+          milliliters: >-
+            {{ ((fc_target - fc_now) * ml_per_fc_ppm) | round(0) }}
+
+mode: single

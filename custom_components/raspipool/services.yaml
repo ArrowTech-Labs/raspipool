@@ -1,0 +1,94 @@
+inject_bleach:
+  name: Inject bleach
+  description: Dose bleach by running the ORP injection pump for the required time.
+  fields:
+    entry_id:
+      name: Config entry
+      description: Raspipool config entry ID (optional when only one pool is configured).
+      example: "abcd1234"
+      selector:
+        text:
+    milliliters:
+      name: Amount (ml)
+      description: Milliliters of bleach to inject.
+      example: 100
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 10
+          unit_of_measurement: ml
+
+inject_muriatic:
+  name: Inject muriatic acid
+  description: Dose muriatic acid by running the pH injection pump for the required time.
+  fields:
+    entry_id:
+      name: Config entry
+      description: Raspipool config entry ID (optional when only one pool is configured).
+      example: "abcd1234"
+      selector:
+        text:
+    milliliters:
+      name: Amount (ml)
+      description: Milliliters of muriatic acid to inject.
+      example: 50
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 2000
+          step: 10
+          unit_of_measurement: ml
+
+run_pump_for:
+  name: Run pump for
+  description: Run the main pool pump for a fixed duration, then turn it off.
+  fields:
+    entry_id:
+      name: Config entry
+      description: Raspipool config entry ID (optional when only one pool is configured).
+      example: "abcd1234"
+      selector:
+        text:
+    minutes:
+      name: Minutes
+      description: Number of minutes to run the pump.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 720
+          step: 1
+          unit_of_measurement: min
+
+reset_tank:
+  name: Reset tank level
+  description: Manually set a chemical tank level (use after refilling).
+  fields:
+    entry_id:
+      name: Config entry
+      description: Raspipool config entry ID (optional when only one pool is configured).
+      example: "abcd1234"
+      selector:
+        text:
+    tank:
+      name: Tank
+      description: Which tank to reset.
+      required: true
+      selector:
+        select:
+          options:
+            - bleach
+            - muriatic
+    liters:
+      name: Liters
+      description: New tank level in liters.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 200
+          step: 0.5
+          unit_of_measurement: L

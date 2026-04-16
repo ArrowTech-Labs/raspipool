@@ -63,9 +63,20 @@ confirm its encryption key. All sensors and switches will appear in HA.
 
 ### 2. Install the Raspipool integration via HACS
 
-1. Open HACS -> Integrations -> three-dot menu -> Custom repositories.
-2. Add `https://github.com/ArrowTech-Labs/raspipool` with category `Integration`.
-3. Install **Raspipool**. Restart Home Assistant.
+1. Open **Settings → Apps** (or the **HACS** entry in the sidebar, depending on
+   your Home Assistant version) → **Integrations** → **⋮** (three dots) →
+   **Custom repositories**.
+2. Paste `https://github.com/ArrowTech-Labs/raspipool`.
+3. Set **Category** to **Integration** (not Add-on, not Theme). Add the repository.
+4. Install **Raspipool**, then restart Home Assistant.
+
+**If you see “is not a valid app repository”:** that almost always means either
+(1) the category is wrong (must be **Integration**), (2) the repo is missing
+[HACS integration requirements](https://www.hacs.xyz/docs/publish/integration/)
+— in particular a `custom_components/<domain>/brand/icon.png` — or (3) you are
+in **Settings → Add-ons → Add-on store → Repositories** (Supervisor add-ons use
+a different format and will reject a custom integration repo). Use **Apps /
+HACS → Custom repositories** instead.
 4. Settings -> Devices & Services -> **Add Integration** -> Raspipool.
 5. Follow the wizard to map your ESP32 sensors/switches and enter pool
    parameters.

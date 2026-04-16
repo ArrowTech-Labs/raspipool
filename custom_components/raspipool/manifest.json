@@ -1,7 +1,7 @@
 {
   "domain": "raspipool",
   "name": "Raspipool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/ArrowTech-Labs/raspipool",
   "issue_tracker": "https://github.com/ArrowTech-Labs/raspipool/issues",
   "codeowners": ["@ArrowTech-Labs"],

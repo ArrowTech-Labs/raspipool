@@ -23,6 +23,6 @@ class RaspipoolEntity(CoordinatorEntity[RaspipoolCoordinator]):
             name=coordinator.pool_name,
             manufacturer=MANUFACTURER,
             model="Raspipool",
-            sw_version="1.0.0",
+            sw_version="1.0.1",
             configuration_url="https://github.com/ArrowTech-Labs/raspipool",
         )

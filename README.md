@@ -102,6 +102,38 @@ If you used the original [segalion/raspipool](https://github.com/segalion/raspip
 Every capability of the original YAML-package system is re-created via entity
 and blueprint equivalents; a mapping table lives in [`legacy/README.md`](legacy/README.md).
 
+## Publishing new versions (maintainers)
+
+This repository is configured so HACS installs directly from the **default
+branch** — you do **not** need to create GitHub Releases. Per the
+[HACS publishing rules](https://www.hacs.xyz/docs/publish/start/#versions):
+
+> If the repository does not use tags, the 7 first characters of the last
+> commit will be used.
+>
+> Just publishing tags is not enough, you need to publish releases.
+
+So:
+
+- `git tag v1.2.3 && git push --tags` **does not** register a new version in
+  HACS. Git tags without an accompanying GitHub Release are ignored.
+- HACS will always install the latest commit of the default branch and show
+  the short commit SHA as the remote version in the HACS UI.
+- Users still get "update available" notifications whenever a new commit lands.
+
+### Recommended release workflow
+
+1. Bump the `version` field in
+   [`custom_components/raspipool/manifest.json`](custom_components/raspipool/manifest.json)
+   (this is the version Home Assistant shows on the integration card itself).
+2. Commit the change and push to the default branch.
+3. Optionally run `git tag v1.2.3 && git push --tags` as a reference marker —
+   it has no effect on HACS.
+
+If later on you want HACS to pin to named versions, create a GitHub Release
+(`gh release create v1.2.3 --generate-notes`). Until then the tag-or-no-tag
+workflow above is all that is required.
+
 ## License
 
 MIT - see [LICENSE](LICENSE).
